@@ -11,7 +11,7 @@ import {
   writeJobFile, readJobFile, writeJobOutput, readJobOutput,
   resolveWorkspaceRoot, resolveJobLogFile,
 } from "./lib/state.mjs";
-import { terminateProcessTree } from "./lib/process.mjs";
+import { runProcess, terminateProcessTree } from "./lib/process.mjs";
 import { renderSetupReport, renderStatusTable, renderJobDetail, renderCancelReport } from "./lib/render.mjs";
 
 const SESSION_ID_ENV = "KIRO_COMPANION_SESSION_ID";
@@ -432,6 +432,64 @@ function handleCancel(argv) {
   outputResult(options.json ? payload : renderCancelReport(updatedJob), options.json);
 }
 
+async function handleReview(argv) {
+  const { options } = parseFlags(argv, {
+    valueOptions: ["base"],
+    booleanOptions: ["background", "wait"],
+  });
+
+  const cwd = process.cwd();
+
+  // Build diff
+  let diff = "";
+  if (options.base) {
+    const result = await runProcess("git", ["diff", `${options.base}...HEAD`], { cwd });
+    diff = result.stdout;
+  } else {
+    const result = await runProcess("git", ["diff", "HEAD"], { cwd });
+    diff = result.stdout;
+    if (!diff.trim()) {
+      // Fall back to latest commit diff; ignore errors (e.g. initial commit)
+      try {
+        const fallback = await runProcess("git", ["diff", "HEAD~1"], { cwd });
+        if (fallback.exitCode === 0) diff = fallback.stdout;
+      } catch {
+        // HEAD~1 does not exist (initial commit) — leave diff empty
+      }
+    }
+  }
+
+  if (!diff.trim()) {
+    console.log("No changes to review.");
+    return;
+  }
+
+  // Truncate at a newline boundary to avoid cutting multi-byte characters
+  const MAX_DIFF = 100_000;
+  let diffText = diff;
+  if (diff.length > MAX_DIFF) {
+    const cutoff = diff.lastIndexOf("\n", MAX_DIFF);
+    diffText = (cutoff > 0 ? diff.slice(0, cutoff) : diff.slice(0, MAX_DIFF)) + "\n\n... (diff truncated)";
+  }
+
+  const prompt = [
+    "Review the following code changes. Point out bugs, security issues, performance problems, and readability concerns.",
+    "Be specific with file paths and line references.",
+    "",
+    "```diff",
+    diffText,
+    "```",
+  ].join("\n");
+
+  // Reuse handleChat logic by building a synthetic argv
+  const chatArgv = [];
+  if (options.background) chatArgv.push("--background");
+  if (options.wait) chatArgv.push("--wait");
+  chatArgv.push(prompt);
+
+  return handleChat(chatArgv);
+}
+
 // --- Dispatcher ---
 
 const [subcommand, ...argv] = process.argv.slice(2);
@@ -444,6 +502,7 @@ const handlers = {
   status: handleStatus,
   result: handleResult,
   cancel: handleCancel,
+  review: handleReview,
 };
 
 const handler = handlers[subcommand];
