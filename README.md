@@ -1,34 +1,167 @@
 # Kiro Plugin for Claude Code
 
-Use [Kiro CLI](https://kiro.dev/) from Claude Code to chat, translate shell commands, or delegate tasks.
+Use [Kiro CLI](https://kiro.dev/) from inside Claude Code to chat, translate shell commands, or delegate tasks.
 
-## Features
+This plugin is for Claude Code users who want an easy way to start using Kiro from the workflow
+they already have.
 
-| Command | Description |
-|---------|-------------|
-| `/kiro:setup` | Check kiro-cli installation and authentication |
-| `/kiro:chat` | Send a task or question to Kiro CLI |
-| `/kiro:translate` | Convert natural language to a shell command |
-| `/kiro:status` | Show active and recent jobs |
-| `/kiro:result` | Retrieve completed job output |
-| `/kiro:cancel` | Cancel an active job |
+## What You Get
+
+- `/kiro:chat` to send tasks or questions to Kiro
+- `/kiro:translate` to convert natural language to shell commands
+- `/kiro:status`, `/kiro:result`, and `/kiro:cancel` to manage background jobs
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/claude-code) CLI
-- [Kiro CLI](https://kiro.dev/docs/cli/installation/) (`curl -fsSL https://cli.kiro.dev/install | bash`)
-- Node.js 18.18 or later
+- **[Kiro CLI](https://kiro.dev/docs/cli/installation/)** with a valid login
+- **Node.js 18.18 or later**
 
-## Getting Started
+## Install
 
-1. Install the plugin in Claude Code
-2. Run `/kiro:setup` to verify kiro-cli is installed and authenticated
-3. If needed, run `!kiro-cli login` to sign in
-4. Start using `/kiro:chat`, `/kiro:translate`, etc.
+Add the plugin in Claude Code:
 
-## Configuration
+```bash
+/install-plugin https://github.com/7nohe/kiro-plugin-cc
+```
 
-The plugin uses your local kiro-cli installation and authentication. Any agent configurations or MCP servers you've set up with kiro-cli will be available.
+Then run:
+
+```bash
+/kiro:setup
+```
+
+`/kiro:setup` will tell you whether Kiro is ready. If kiro-cli is missing, it can offer to install it for you.
+
+If you prefer to install kiro-cli yourself, use:
+
+```bash
+curl -fsSL https://cli.kiro.dev/install | bash
+```
+
+If kiro-cli is installed but not logged in yet, run:
+
+```bash
+!kiro-cli login
+```
+
+After install, you should see:
+
+- the slash commands listed below
+- the `kiro-delegate` subagent in `/agents`
+
+One simple first run is:
+
+```bash
+/kiro:chat hello
+/kiro:status
+/kiro:result
+```
+
+## Usage
+
+### `/kiro:chat`
+
+Sends a task or question to Kiro CLI.
+
+Use it when you want to:
+
+- ask Kiro to investigate or fix something
+- delegate a substantial task to Kiro
+- run a task in the background while continuing other work
+
+It supports `--background`, `--wait`, `--agent <name>`, `--resume`, and `--resume-id <id>`.
+
+Examples:
+
+```bash
+/kiro:chat investigate why the tests are failing
+/kiro:chat --background refactor the auth module
+/kiro:chat --agent my-agent fix the deployment script
+```
+
+When run in the background, use [`/kiro:status`](#kirostatus) to check progress and [`/kiro:cancel`](#kirocancel) to stop the task.
+
+### `/kiro:translate`
+
+Converts natural language to a shell command using Kiro.
+
+The translated command is presented to the user but **not executed automatically**.
+
+Examples:
+
+```bash
+/kiro:translate find all TODO comments in the src directory
+/kiro:translate show disk usage sorted by size
+```
+
+### `/kiro:status`
+
+Shows running and recent Kiro jobs for the current session.
+
+Examples:
+
+```bash
+/kiro:status
+/kiro:status chat-abc123
+```
+
+### `/kiro:result`
+
+Shows the output of a completed Kiro job.
+
+Examples:
+
+```bash
+/kiro:result
+/kiro:result chat-abc123
+```
+
+### `/kiro:cancel`
+
+Cancels an active background Kiro job.
+
+Examples:
+
+```bash
+/kiro:cancel
+/kiro:cancel chat-abc123
+```
+
+### `/kiro:setup`
+
+Checks whether kiro-cli is installed and authenticated, and runs a system health check.
+
+## Typical Flows
+
+### Ask Kiro a Quick Question
+
+```bash
+/kiro:chat what does the handleAuth function do?
+```
+
+### Delegate a Long-Running Task
+
+```bash
+/kiro:chat --background investigate the flaky integration test
+/kiro:status
+/kiro:result
+```
+
+### Translate a Command
+
+```bash
+/kiro:translate list all open ports on this machine
+```
+
+## Kiro Integration
+
+This plugin wraps the [Kiro CLI](https://kiro.dev/docs/cli/). It uses the global `kiro-cli` binary installed in your environment and applies the same configuration.
+
+Because the plugin uses your local Kiro CLI:
+
+- it uses the same kiro-cli install you would use directly
+- it uses the same local authentication state
+- it uses the same repository checkout and machine-local environment
 
 ## License
 
