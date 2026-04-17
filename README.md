@@ -18,10 +18,22 @@ they already have.
 
 ## Install
 
-Add the plugin in Claude Code:
+Add the marketplace in Claude Code:
 
 ```bash
-/install-plugin https://github.com/7nohe/kiro-plugin-cc
+/plugin marketplace add 7nohe/kiro-plugin-cc
+```
+
+Install the plugin:
+
+```bash
+/plugin install kiro@kiro-plugin-cc
+```
+
+Reload plugins:
+
+```bash
+/reload-plugins
 ```
 
 Then run:

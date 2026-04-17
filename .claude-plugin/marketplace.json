@@ -1,0 +1,21 @@
+{
+  "name": "kiro-plugin-cc",
+  "owner": {
+    "name": "7nohe"
+  },
+  "metadata": {
+    "description": "Use Kiro CLI from Claude Code to chat, translate commands, or delegate tasks.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "kiro",
+      "description": "Use Kiro CLI from Claude Code to chat, translate commands, or delegate tasks.",
+      "version": "0.1.0",
+      "author": {
+        "name": "7nohe"
+      },
+      "source": "./plugins/kiro"
+    }
+  ]
+}
