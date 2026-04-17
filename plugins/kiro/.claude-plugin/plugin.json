@@ -1,0 +1,8 @@
+{
+  "name": "kiro",
+  "version": "0.1.0",
+  "description": "Use Kiro CLI from Claude Code to chat, translate commands, or delegate tasks.",
+  "author": {
+    "name": "kiro-plugin-cc"
+  }
+}
