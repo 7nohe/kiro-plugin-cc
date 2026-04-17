@@ -7,6 +7,7 @@ they already have.
 
 ## What You Get
 
+- `/kiro:review` for a code review powered by Kiro
 - `/kiro:chat` to send tasks or questions to Kiro
 - `/kiro:translate` to convert natural language to shell commands
 - `/kiro:status`, `/kiro:result`, and `/kiro:cancel` to manage background jobs
@@ -70,6 +71,27 @@ One simple first run is:
 ```
 
 ## Usage
+
+### `/kiro:review`
+
+Runs a code review on your current changes using Kiro.
+
+Use it when you want:
+
+- a review of your uncommitted changes
+- a review of your branch compared to a base branch like `main`
+
+Use `--base <ref>` for branch review. It also supports `--wait` and `--background`.
+
+Examples:
+
+```bash
+/kiro:review
+/kiro:review --base main
+/kiro:review --background
+```
+
+This command is read-only and will not perform any changes. When run in the background, use [`/kiro:status`](#kirostatus) to check progress.
 
 ### `/kiro:chat`
 
@@ -144,6 +166,12 @@ Examples:
 Checks whether kiro-cli is installed and authenticated, and runs a system health check.
 
 ## Typical Flows
+
+### Review Before Shipping
+
+```bash
+/kiro:review
+```
 
 ### Ask Kiro a Quick Question
 
