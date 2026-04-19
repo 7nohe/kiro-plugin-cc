@@ -1,4 +1,5 @@
 ---
+name: chat
 description: Send a task or question to Kiro CLI
 argument-hint: "[--background|--wait] [--agent <name>] [--resume|--resume-id <id>] <prompt>"
 context: fork

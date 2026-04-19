@@ -1,4 +1,5 @@
 ---
+name: cancel
 description: Cancel an active Kiro job
 argument-hint: "[job-id]"
 disable-model-invocation: true

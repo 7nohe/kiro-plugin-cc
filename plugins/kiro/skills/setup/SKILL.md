@@ -1,4 +1,5 @@
 ---
+name: setup
 description: Check whether kiro-cli is installed and authenticated
 allowed-tools: Bash(node:*), Bash(curl:*), AskUserQuestion
 ---

@@ -1,4 +1,5 @@
 ---
+name: status
 description: Show active and recent Kiro jobs for this workspace
 argument-hint: "[job-id] [--all]"
 disable-model-invocation: true

@@ -9,6 +9,7 @@ they already have.
 
 - `/kiro:review` for a code review powered by Kiro
 - `/kiro:chat` to send tasks or questions to Kiro
+- `/kiro:aws-advisor` for AWS environment advice on cost, security, and performance
 - `/kiro:translate` to convert natural language to shell commands
 - `/kiro:status`, `/kiro:result`, and `/kiro:cancel` to manage background jobs
 
@@ -114,6 +115,24 @@ Examples:
 ```
 
 When run in the background, use [`/kiro:status`](#kirostatus) to check progress and [`/kiro:cancel`](#kirocancel) to stop the task.
+
+### `/kiro:aws-advisor`
+
+Analyzes your AWS environment and provides recommendations for cost optimization, security, reliability, and performance.
+
+Kiro uses real AWS API calls to inspect your resources, so it gives advice based on actual state rather than guesswork.
+
+It supports `--background` and `--wait`. If no prompt is given, a general scan runs automatically.
+
+Examples:
+
+```bash
+/kiro:aws-advisor
+/kiro:aws-advisor check for unused EBS volumes and Elastic IPs
+/kiro:aws-advisor --background review IAM policies for least privilege
+```
+
+When run in the background, use [`/kiro:status`](#kirostatus) to check progress.
 
 ### `/kiro:translate`
 

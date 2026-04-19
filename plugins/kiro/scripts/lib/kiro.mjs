@@ -69,6 +69,21 @@ export async function runKiroChat(prompt, options = {}) {
 }
 
 /**
+ * Run `kiro-cli chat` with an AWS advisor system prompt prepended.
+ */
+export async function runKiroAwsAdvisor(prompt, options = {}) {
+  const advisorPrompt = [
+    "You are an AWS advisor. Analyze the user's AWS environment using the use_aws tool and provide actionable recommendations.",
+    "Focus on: cost optimization (unused resources, rightsizing), security (public access, MFA, IAM), reliability, and performance.",
+    "Always check real AWS state via API calls before giving advice. Be specific with resource IDs and concrete next steps.",
+    "",
+    prompt,
+  ].join("\n");
+
+  return runKiroChat(advisorPrompt, options);
+}
+
+/**
  * Run `kiro-cli translate` with the given text.
  */
 export async function runKiroTranslate(input, options = {}) {

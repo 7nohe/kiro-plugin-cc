@@ -1,4 +1,5 @@
 ---
+name: result
 description: Show the output for a finished Kiro job
 argument-hint: "[job-id]"
 disable-model-invocation: true

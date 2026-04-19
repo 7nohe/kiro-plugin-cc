@@ -1,4 +1,5 @@
 ---
+name: translate
 description: Convert natural language to a shell command using Kiro
 argument-hint: "<description of what you want to do>"
 disable-model-invocation: true

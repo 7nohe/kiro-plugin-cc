@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-import { getKiroAvailability, getKiroAuthStatus, runKiroDoctor, runKiroChat, runKiroTranslate } from "./lib/kiro.mjs";
+import { getKiroAvailability, getKiroAuthStatus, runKiroDoctor, runKiroChat, runKiroTranslate, runKiroAwsAdvisor } from "./lib/kiro.mjs";
 import {
   generateJobId, upsertJob, listJobs, getJob,
   writeJobFile, readJobFile, writeJobOutput, readJobOutput,
@@ -129,18 +129,31 @@ async function handleSetup(argv) {
   }
 }
 
-async function handleChat(argv) {
+/**
+ * Shared logic for chat-like commands (chat, aws-advisor).
+ * @param {object} config - Command-specific configuration
+ * @param {string} config.jobClass - Job class identifier (e.g. "chat", "aws-advisor")
+ * @param {string} config.title - Human-readable job title
+ * @param {string} config.workerSubcommand - Subcommand name for the background worker
+ * @param {function} config.runFn - Function to execute the kiro CLI call: (prompt, opts) => result
+ * @param {function} config.buildRunOpts - Build run options from parsed flags: (options, cwd) => opts
+ * @param {string[]} config.valueOptions - Value options for parseFlags
+ * @param {string[]} config.booleanOptions - Boolean options for parseFlags
+ * @param {boolean} config.requirePrompt - Whether to error if no prompt is given
+ * @param {string} [config.defaultPrompt] - Default prompt when none is provided
+ */
+async function handleChatLike(argv, config) {
   const { options, positionals } = parseFlags(argv, {
-    valueOptions: ["agent", "resume-id"],
-    booleanOptions: ["background", "wait", "no-trust-all-tools", "resume"],
+    valueOptions: config.valueOptions ?? [],
+    booleanOptions: config.booleanOptions ?? ["background", "wait"],
   });
 
   const cwd = process.cwd();
   const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const prompt = positionals.join(" ").trim();
+  const prompt = positionals.join(" ").trim() || config.defaultPrompt || "";
 
-  if (!prompt) {
-    console.error("Error: No prompt provided. Usage: kiro-companion.mjs chat <prompt>");
+  if (!prompt && config.requirePrompt) {
+    console.error(`Error: No prompt provided. Usage: kiro-companion.mjs ${config.jobClass} <prompt>`);
     process.exit(1);
   }
 
@@ -150,14 +163,14 @@ async function handleChat(argv) {
     process.exit(1);
   }
 
-  const jobId = generateJobId("chat");
+  const jobId = generateJobId(config.jobClass);
   const job = {
     id: jobId,
     type: "chat",
-    jobClass: "chat",
+    jobClass: config.jobClass,
     status: "running",
     phase: "starting",
-    title: "Kiro Chat",
+    title: config.title,
     summary: shorten(prompt),
     prompt: prompt.slice(0, 200),
     sessionId: getSessionId(),
@@ -173,7 +186,7 @@ async function handleChat(argv) {
     writeJobFile(workspaceRoot, jobId, { ...job, request: { prompt, options } });
 
     const scriptPath = path.join(ROOT_DIR, "scripts", "kiro-companion.mjs");
-    const child = spawn(process.execPath, [scriptPath, "chat-worker", "--job-id", jobId], {
+    const child = spawn(process.execPath, [scriptPath, config.workerSubcommand, "--job-id", jobId], {
       cwd,
       env: process.env,
       detached: true,
@@ -183,20 +196,15 @@ async function handleChat(argv) {
     child.unref();
 
     upsertJob(workspaceRoot, { id: jobId, pid: child.pid ?? null });
-    console.log(`Kiro chat started in the background as ${jobId}. Check /kiro:status ${jobId} for progress.`);
+    console.log(`${config.title} started in the background as ${jobId}. Check /kiro:status ${jobId} for progress.`);
     return;
   }
 
   // Foreground execution
   upsertJob(workspaceRoot, job);
 
-  const result = await runKiroChat(prompt, {
-    cwd,
-    agent: options.agent ?? null,
-    trustAllTools: !options["no-trust-all-tools"],
-    resume: options.resume ?? false,
-    resumeId: options["resume-id"] ?? null,
-  });
+  const runOpts = config.buildRunOpts(options, cwd);
+  const result = await config.runFn(prompt, runOpts);
 
   const completionStatus = result.exitCode === 0 ? "completed" : "failed";
   const completedAt = nowIso();
@@ -226,11 +234,18 @@ async function handleChat(argv) {
   process.exitCode = result.exitCode;
 }
 
-async function handleChatWorker(argv) {
+/**
+ * Shared background worker logic for chat-like commands.
+ * @param {object} config - Command-specific configuration
+ * @param {string} config.workerSubcommand - Subcommand name (for error messages)
+ * @param {function} config.runFn - Function to execute the kiro CLI call: (prompt, opts) => result
+ * @param {function} config.buildRunOptsFromStored - Build run options from stored request: (reqOpts, cwd) => opts
+ */
+async function handleChatLikeWorker(argv, config) {
   const { options } = parseFlags(argv, { valueOptions: ["job-id"] });
   const jobId = options["job-id"];
   if (!jobId) {
-    throw new Error("Missing required --job-id for chat-worker.");
+    throw new Error(`Missing required --job-id for ${config.workerSubcommand}.`);
   }
 
   const cwd = process.cwd();
@@ -251,13 +266,8 @@ async function handleChatWorker(argv) {
   });
 
   try {
-    const result = await runKiroChat(prompt, {
-      cwd,
-      agent: reqOpts.agent ?? null,
-      trustAllTools: !reqOpts["no-trust-all-tools"],
-      resume: reqOpts.resume ?? false,
-      resumeId: reqOpts["resume-id"] ?? null,
-    });
+    const runOpts = config.buildRunOptsFromStored(reqOpts, cwd);
+    const result = await config.runFn(prompt, runOpts);
 
     const completionStatus = result.exitCode === 0 ? "completed" : "failed";
     const completedAt = nowIso();
@@ -295,6 +305,47 @@ async function handleChatWorker(argv) {
     throw err;
   }
 }
+
+const chatConfig = {
+  jobClass: "chat",
+  title: "Kiro Chat",
+  workerSubcommand: "chat-worker",
+  runFn: runKiroChat,
+  requirePrompt: true,
+  valueOptions: ["agent", "resume-id"],
+  booleanOptions: ["background", "wait", "no-trust-all-tools", "resume"],
+  buildRunOpts: (options, cwd) => ({
+    cwd,
+    agent: options.agent ?? null,
+    trustAllTools: !options["no-trust-all-tools"],
+    resume: options.resume ?? false,
+    resumeId: options["resume-id"] ?? null,
+  }),
+  buildRunOptsFromStored: (reqOpts, cwd) => ({
+    cwd,
+    agent: reqOpts.agent ?? null,
+    trustAllTools: !reqOpts["no-trust-all-tools"],
+    resume: reqOpts.resume ?? false,
+    resumeId: reqOpts["resume-id"] ?? null,
+  }),
+};
+
+const awsAdvisorConfig = {
+  jobClass: "aws-advisor",
+  title: "Kiro AWS Advisor",
+  workerSubcommand: "aws-advisor-worker",
+  runFn: runKiroAwsAdvisor,
+  requirePrompt: false,
+  defaultPrompt: "Scan my AWS environment and provide recommendations for cost, security, and performance.",
+  booleanOptions: ["background", "wait"],
+  buildRunOpts: (_options, cwd) => ({ cwd, trustAllTools: true }),
+  buildRunOptsFromStored: (_reqOpts, cwd) => ({ cwd, trustAllTools: true }),
+};
+
+function handleChat(argv) { return handleChatLike(argv, chatConfig); }
+function handleChatWorker(argv) { return handleChatLikeWorker(argv, chatConfig); }
+function handleAwsAdvisor(argv) { return handleChatLike(argv, awsAdvisorConfig); }
+function handleAwsAdvisorWorker(argv) { return handleChatLikeWorker(argv, awsAdvisorConfig); }
 
 async function handleTranslate(argv) {
   const input = normalizeArgv(argv).join(" ").trim();
@@ -499,6 +550,8 @@ const handlers = {
   chat: handleChat,
   "chat-worker": handleChatWorker,
   translate: handleTranslate,
+  "aws-advisor": handleAwsAdvisor,
+  "aws-advisor-worker": handleAwsAdvisorWorker,
   status: handleStatus,
   result: handleResult,
   cancel: handleCancel,
@@ -507,7 +560,7 @@ const handlers = {
 
 const handler = handlers[subcommand];
 if (!handler) {
-  const available = Object.keys(handlers).filter((k) => k !== "chat-worker").join(", ");
+  const available = Object.keys(handlers).filter((k) => k !== "chat-worker" && k !== "aws-advisor-worker").join(", ");
   console.error(`Unknown subcommand: ${subcommand}`);
   console.error(`Available: ${available}`);
   process.exit(1);

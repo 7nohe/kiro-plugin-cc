@@ -1,4 +1,5 @@
 ---
+name: review
 description: Run a Kiro code review against local git state
 argument-hint: '[--wait|--background] [--base <ref>]'
 disable-model-invocation: true
